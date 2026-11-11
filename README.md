@@ -128,7 +128,7 @@ untouched). The original block is kept next to it as `stylers.xml.bak-<date>`.
 
 Plus:
 
-* font **Consolas 11** for the whole JSON lexer (aligned columns, no proportional wobble)
+* font **Vazirmatn 11** for the whole JSON lexer (Persian strings look right; the tab-stop indentation keeps the structure readable)
 * **folding** is available: the fold margin shows `+`/`-`; `View ▸ Fold All` collapses the whole document
 * the status bar identifies the language as `JSON file`
 * Persian strings inside the JSON are shaped by the system fallback — the colour/indent work is what makes the

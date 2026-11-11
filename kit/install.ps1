@@ -111,20 +111,20 @@ if (Test-Path $stylers) {
     $t = [IO.File]::ReadAllText($stylers)
     $jsonBlock = @'
 <LexerType name="json" desc="JSON" ext="">
-            <WordsStyle name="DEFAULT" styleID="0" fgColor="1F2328" bgColor="FFFFFF" fontName="Consolas" fontStyle="0" fontSize="11" />
-            <WordsStyle name="NUMBER" styleID="1" fgColor="098658" bgColor="FFFFFF" fontName="Consolas" fontStyle="0" fontSize="11" />
-            <WordsStyle name="STRING" styleID="2" fgColor="A31515" bgColor="FFFFFF" fontName="Consolas" fontStyle="0" fontSize="11" />
-            <WordsStyle name="STRING EOL" styleID="3" fgColor="8A8A8A" bgColor="FFFFFF" fontName="Consolas" fontStyle="0" fontSize="11" />
-            <WordsStyle name="PROPERTY NAME" styleID="4" fgColor="0451A5" bgColor="FFFFFF" fontName="Consolas" fontStyle="1" fontSize="11" />
-            <WordsStyle name="ESCAPE SEQUENCE" styleID="5" fgColor="D12F1B" bgColor="FFFFFF" fontName="Consolas" fontStyle="1" fontSize="11" />
-            <WordsStyle name="LINE COMMENT" styleID="6" fgColor="008000" bgColor="FFFFFF" fontName="Consolas" fontStyle="2" fontSize="11" />
-            <WordsStyle name="BLOCK COMMENT" styleID="7" fgColor="008000" bgColor="FFFFFF" fontName="Consolas" fontStyle="2" fontSize="11" />
-            <WordsStyle name="OPERATOR" styleID="8" fgColor="5A5A5A" bgColor="FFFFFF" fontName="Consolas" fontStyle="0" fontSize="11" />
-            <WordsStyle name="URI" styleID="9" fgColor="0451A5" bgColor="FFFFFF" fontName="Consolas" fontStyle="0" fontSize="11" />
-            <WordsStyle name="COMPACT IRI" styleID="10" fgColor="0451A5" bgColor="FFFFFF" fontName="Consolas" fontStyle="1" fontSize="11" />
-            <WordsStyle name="KEYWORD" styleID="11" fgColor="0000C0" bgColor="FFFFFF" fontName="Consolas" fontStyle="1" fontSize="11" keywordClass="instre1" />
-            <WordsStyle name="LD KEYWORD" styleID="12" fgColor="AF00DB" bgColor="FFFFFF" fontName="Consolas" fontStyle="1" fontSize="11" keywordClass="instre2" />
-            <WordsStyle name="ERROR" styleID="13" fgColor="FFFFFF" bgColor="E45649" fontName="Consolas" fontStyle="1" fontSize="11" />
+            <WordsStyle name="DEFAULT" styleID="0" fgColor="1F2328" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="0" fontSize="11" />
+            <WordsStyle name="NUMBER" styleID="1" fgColor="098658" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="0" fontSize="11" />
+            <WordsStyle name="STRING" styleID="2" fgColor="A31515" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="0" fontSize="11" />
+            <WordsStyle name="STRING EOL" styleID="3" fgColor="8A8A8A" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="0" fontSize="11" />
+            <WordsStyle name="PROPERTY NAME" styleID="4" fgColor="0451A5" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="1" fontSize="11" />
+            <WordsStyle name="ESCAPE SEQUENCE" styleID="5" fgColor="D12F1B" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="1" fontSize="11" />
+            <WordsStyle name="LINE COMMENT" styleID="6" fgColor="008000" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="2" fontSize="11" />
+            <WordsStyle name="BLOCK COMMENT" styleID="7" fgColor="008000" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="2" fontSize="11" />
+            <WordsStyle name="OPERATOR" styleID="8" fgColor="5A5A5A" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="0" fontSize="11" />
+            <WordsStyle name="URI" styleID="9" fgColor="0451A5" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="0" fontSize="11" />
+            <WordsStyle name="COMPACT IRI" styleID="10" fgColor="0451A5" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="1" fontSize="11" />
+            <WordsStyle name="KEYWORD" styleID="11" fgColor="0000C0" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="1" fontSize="11" keywordClass="instre1" />
+            <WordsStyle name="LD KEYWORD" styleID="12" fgColor="AF00DB" bgColor="FFFFFF" fontName="Vazirmatn" fontStyle="1" fontSize="11" keywordClass="instre2" />
+            <WordsStyle name="ERROR" styleID="13" fgColor="FFFFFF" bgColor="E45649" fontName="Vazirmatn" fontStyle="1" fontSize="11" />
         </LexerType>
 '@
     if ($t -notmatch 'name="json"') {
