@@ -1,0 +1,56 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  plugin:
+    name: Build PersianKit.dll (x64)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Compile
+        shell: cmd
+        run: build\build.bat
+
+      - name: Show result
+        shell: pwsh
+        run: Get-ChildItem dist\PersianKit | Format-Table Name, Length
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: PersianKit-x64
+          path: dist/PersianKit/PersianKit.dll
+          if-no-files-found: error
+
+      - name: Package (tag builds)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $stage = "stage/PersianKit"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item dist/PersianKit/PersianKit.dll $stage
+          Copy-Item kit/fonts $stage -Recurse
+          Copy-Item kit/css   $stage -Recurse
+          Copy-Item build/install-plugin.ps1 $stage -ErrorAction SilentlyContinue
+          Compress-Archive -Path stage/PersianKit -DestinationPath PersianKit-${{ github.ref_name }}-x64.zip -Force
+          Get-ChildItem PersianKit-*.zip | Format-Table Name, Length
+
+      - name: Upload release zip
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: PersianKit-release-zip
+          path: PersianKit-*.zip

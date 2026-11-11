@@ -1,0 +1,206 @@
+/* ==========================================================================
+   Markdown Panel - Persian / RTL stylesheet (light theme)
+   Notepad++ > Plugins > MarkdownPanel > Settings > CSS file
+   Font: Vazirmatn | direction: RTL | code blocks stay LTR
+   ========================================================================== */
+
+body.markdown-body,
+body {
+    font-family: "Vazirmatn", "Vazirmatn UI", "Vazir", Tahoma, "Segoe UI", sans-serif !important;
+    font-size: 15px;
+    line-height: 1.95;
+    color: #24292f;
+    background-color: #ffffff;
+    direction: rtl;
+    text-align: right;
+    padding: 8px 12px 26px 12px;
+    box-sizing: border-box;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: normal;
+    hyphens: none;
+}
+
+/* headings ---------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+    direction: rtl;
+    text-align: right;
+    font-family: "Vazirmatn", "Vazir", Tahoma, sans-serif;
+    font-weight: 700;
+    line-height: 1.6;
+    color: #1f2328;
+    margin: 1.5em 0 0.6em;
+    padding: 0;
+}
+
+h1 { font-size: 1.8em;  border-bottom: 2px solid #e5e7eb; padding-bottom: 0.3em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #eceff2; padding-bottom: 0.25em; }
+h3 { font-size: 1.22em; }
+h4 { font-size: 1.07em; }
+h5 { font-size: 1em;    color: #57606a; }
+h6 { font-size: 0.95em; color: #57606a; }
+
+body > *:first-child { margin-top: 0 !important; }
+body > *:last-child  { margin-bottom: 0 !important; }
+
+/* text -------------------------------------------------------------------- */
+p {
+    direction: rtl;
+    text-align: right;
+    margin: 0 0 1em 0;
+}
+
+strong, b { font-weight: 700; color: #1f2328; }
+em, i { font-style: normal; font-weight: 500; color: #3d444d; }
+
+a { color: #0969da; text-decoration: none; unicode-bidi: isolate; }
+a:hover { text-decoration: underline; }
+
+hr {
+    height: 0;
+    border: 0;
+    border-top: 1px solid #e5e7eb;
+    margin: 1.5em 0;
+}
+
+/* lists ------------------------------------------------------------------- */
+ul, ol {
+    direction: rtl;
+    text-align: right;
+    margin: 0 0 1em 0;
+    padding-right: 1.7em;
+    padding-left: 0;
+}
+
+li { margin: 0.25em 0; padding-left: 0; }
+li > ul, li > ol { margin: 0.25em 0; }
+li > p { margin: 0; }
+
+/* task lists */
+li.task-list-item,
+li:has(> input[type="checkbox"]) { list-style: none; margin-right: -1.4em; }
+
+input[type="checkbox"] {
+    margin: 0 0 0 0.55em;
+    vertical-align: middle;
+    width: 14px;
+    height: 14px;
+    accent-color: #0969da;
+}
+
+/* quotes ------------------------------------------------------------------ */
+blockquote {
+    direction: rtl;
+    text-align: right;
+    margin: 0 0 1em 0;
+    padding: 0.35em 14px 0.35em 0;
+    border-right: 4px solid #d0d7de;
+    border-left: none;
+    color: #57606a;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child  { margin-bottom: 0; }
+
+/* images ------------------------------------------------------------------ */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0.8em auto;
+    border-radius: 6px;
+}
+
+/* tables ------------------------------------------------------------------ */
+table {
+    display: table;
+    direction: rtl;
+    table-layout: auto;
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin: 0 0 1.2em 0;
+    font-size: 0.92em;
+}
+
+thead { display: table-header-group; }
+tbody { display: table-row-group; }
+tr    { display: table-row; background-color: #ffffff; }
+
+th, td {
+    display: table-cell;
+    text-align: right !important;
+    direction: rtl;
+    border: 1px solid #d8dee4;
+    padding: 7px 10px;
+    vertical-align: top;
+    line-height: 1.7;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+th { background-color: #f6f8fa; font-weight: 700; }
+tbody tr:nth-child(2n) { background-color: #fbfcfd; }
+
+/* inline code ------------------------------------------------------------- */
+code, tt, kbd, samp {
+    font-family: "Vazirmatn", "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 0.84em;
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: left;
+    background-color: #f2f4f7;
+    color: #b31d28;
+    border: 1px solid #e4e8ed;
+    border-radius: 5px;
+    padding: 0.1em 0.35em;
+    margin: 0 0.08em;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* code blocks (always LTR) ------------------------------------------------ */
+pre {
+    direction: ltr;
+    text-align: left;
+    unicode-bidi: isolate;
+    background-color: #f6f8fa;
+    border: 1px solid #e4e8ed;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 1.2em 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    line-height: 1.65;
+    tab-size: 4;
+}
+
+pre code,
+pre tt {
+    display: inline;
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: inherit;
+    font-size: 12.5px;
+    white-space: pre;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+/* details / footnotes ----------------------------------------------------- */
+details { margin: 0 0 1em 0; }
+summary { cursor: pointer; font-weight: 600; }
+
+sup { unicode-bidi: isolate; }
+.footnote-ref, .footnote-backref { unicode-bidi: isolate; }

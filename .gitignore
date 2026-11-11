@@ -1,0 +1,15 @@
+# build output
+dist/
+stage/
+*.obj
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.zip
+
+# editor / OS noise
+.vs/
+.vscode/
+Thumbs.db
+desktop.ini
