@@ -87,6 +87,9 @@ TurnRtlOn=1                ; Persian mode also turns RTL on
 FontFace=Vazirmatn
 FontSize=12
 JsonIndentWidth=2          ; spaces per JSON level (ignored when the doc uses tabs)
+SetJsonlLanguage=1         ; switch .jsonl buffers to the JSON lexer
+JsonlMaxSizeMB=16          ; above this: no lexer switch, no word wrap
+JsonMaxFormatMB=32         ; above this: JSON: format refuses to run
 ```
 
 ## Markdown reading — plugin or kit?
@@ -167,6 +170,15 @@ A `.jsonl` file holds **one JSON record per line**. PersianKit treats it like a 
 | **Language** | opening `.jsonl`, `.ndjson`, `.jsonlines` or `.jl` switches the buffer to Notepad++’s **JSON lexer** → same colours, same fold margin, status bar says `JSON file`. Disable with `SetJsonlLanguage=0` in the ini. |
 | **Format** | `JSON: format` first tries the whole document as one value; if that fails it formats **every record independently** (blank lines are kept). If any single line is invalid JSON, nothing is changed. |
 | **Indent** | same rule as JSON: the document’s tab setting (one TAB per level) or `JsonIndentWidth` spaces. |
+
+**Large files.** Both the lexer switch and word wrap make Notepad++ crawl on multi-megabyte files, so:
+
+* above **`JsonlMaxSizeMB`** (default **16 MB**) the plugin leaves the buffer as plain text (no JSON lexer) **and**
+  turns word wrap off for that buffer → the file opens instantly and stays responsive;
+* `JSON: format` refuses documents larger than **`JsonMaxFormatMB`** (default **32 MB**) with a short message instead of
+  freezing the editor.
+
+Both keys live in `%APPDATA%\Notepad++\plugins\config\NppPersianKit.ini` (restart Notepad++ after editing).
 
 ```text
 before                              after "JSON: format"

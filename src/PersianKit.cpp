@@ -45,6 +45,9 @@ static int   g_fontSize    = 12;
 static int   g_jsonIndent  = 2;    /* spaces per level when the document does not use tabs */
 static bool  g_jsonlLang   = true; /* switch .jsonl buffers to the JSON lexer automatically       */
 static int   g_jsonLangType = -1;  /* discovered at runtime via NPPM_GETLANGUAGENAME               */
+static int   g_jsonlMaxMB  = 16;   /* above this size: no lexer switch, no word wrap               */
+static int   g_jsonMaxMB   = 32;   /* above this size: JSON format refuses to run                  */
+static UINT_PTR g_lastJsonlBuffer = 0;
 static char  g_fontFace[64] = "Vazirmatn";
 static wchar_t g_iniPath[MAX_PATH] = L"";
 static bool  g_dwWarned    = false;
@@ -115,6 +118,8 @@ static void BuildIniPath()
         WritePrivateProfileStringW(L"PersianKit", L"FontSize", L"12", g_iniPath);
         WritePrivateProfileStringW(L"PersianKit", L"JsonIndentWidth", L"2", g_iniPath);
         WritePrivateProfileStringW(L"PersianKit", L"SetJsonlLanguage", L"1", g_iniPath);
+        WritePrivateProfileStringW(L"PersianKit", L"JsonlMaxSizeMB", L"16", g_iniPath);
+        WritePrivateProfileStringW(L"PersianKit", L"JsonMaxFormatMB", L"32", g_iniPath);
     }
 }
 
@@ -128,6 +133,8 @@ static void LoadSettings()
     g_fontSize   = GetPrivateProfileIntW(L"PersianKit", L"FontSize", 12, g_iniPath);
     g_jsonIndent = GetPrivateProfileIntW(L"PersianKit", L"JsonIndentWidth", 2, g_iniPath);
     g_jsonlLang  = GetPrivateProfileIntW(L"PersianKit", L"SetJsonlLanguage", 1, g_iniPath) != 0;
+    g_jsonlMaxMB = GetPrivateProfileIntW(L"PersianKit", L"JsonlMaxSizeMB", 16, g_iniPath);
+    g_jsonMaxMB  = GetPrivateProfileIntW(L"PersianKit", L"JsonMaxFormatMB", 32, g_iniPath);
 
     wchar_t face[64] = L"";
     GetPrivateProfileStringW(L"PersianKit", L"FontFace", L"Vazirmatn", face, 64, g_iniPath);
@@ -507,6 +514,26 @@ static bool IsJsonLinesExtension(const wchar_t* ext)
            wcscmp(ext, L"jsonlines") == 0 || wcscmp(ext, L"jl") == 0;
 }
 
+/* Large JSON/JSONL files: Notepad++ has to re-lex the whole buffer when the
+ * language changes and word wrap on multi-megabyte lines makes the editor crawl,
+ * so above a size threshold the plugin keeps the plain-text lexer and turns
+ * wrapping off for that buffer.                                             */
+static void HandleLargeJsonBuffer(const wchar_t* ext)
+{
+    if (!g_jsonlLang || !g_npp._nppHandle) return;
+    if (wcscmp(ext, L"json") != 0 && !IsJsonLinesExtension(ext)) return;
+
+    HWND sci = CurrentSci();
+    if (!sci) return;
+
+    const long len = (long)Sci(sci, SCI_GETLENGTH);
+    const long limit = (long)g_jsonlMaxMB * 1024L * 1024L;
+    if (len <= limit) return;
+
+    if (Sci(sci, SCI_GETWRAPMODE) != SC_WRAP_NONE)
+        Sci(sci, SCI_SETWRAPMODE, SC_WRAP_NONE);   /* keep big files usable */
+}
+
 static void EnsureJsonLinesLanguage()
 {
     if (!g_jsonlLang || !g_npp._nppHandle) return;
@@ -515,12 +542,35 @@ static void EnsureJsonLinesLanguage()
     CurrentExtension(ext, 32);
     if (!IsJsonLinesExtension(ext)) return;
 
-    const int langType = JsonLangType();
+    HandleLargeJsonBuffer(ext);
+
     const UINT_PTR bufferId =
         (UINT_PTR)SendMessage((HWND)g_npp._nppHandle, NPPM_GETCURRENTBUFFERID, 0, 0);
-    LRESULT res = 0;
-    if (langType >= 0 && bufferId)
-        res = SendMessage((HWND)g_npp._nppHandle, NPPM_SETBUFFERLANGTYPE, (WPARAM)bufferId, (LPARAM)langType);
+    if (!bufferId || bufferId == g_lastJsonlBuffer) return;   /* already done */
+
+    /* switching the lexer re-lexes the whole document - not worth it on huge files */
+    HWND sci = CurrentSci();
+    if (sci)
+    {
+        const long len = (long)Sci(sci, SCI_GETLENGTH);
+        if (len > (long)g_jsonlMaxMB * 1024L * 1024L) return;
+    }
+
+    const int langType = JsonLangType();
+    if (langType < 0) return;
+
+    SendMessage((HWND)g_npp._nppHandle, NPPM_SETBUFFERLANGTYPE, (WPARAM)bufferId, (LPARAM)langType);
+    g_lastJsonlBuffer = bufferId;
+}
+
+/* called on every buffer activation: keeps big JSON/JSONL files usable and
+ * switches .jsonl buffers to the JSON lexer (once per buffer).             */
+static void OnBufferJsonHandling()
+{
+    wchar_t ext[32] = L"";
+    CurrentExtension(ext, 32);
+    HandleLargeJsonBuffer(ext);
+    EnsureJsonLinesLanguage();
 }
 
 /* Formats every non-empty line on its own.  Returns false if any line is not
@@ -568,6 +618,18 @@ static void CmdJsonFormat()
 
     const long len = (long)Sci(sci, SCI_GETLENGTH);
     if (len <= 0) return;
+
+    if (len > (long)g_jsonMaxMB * 1024L * 1024L)
+    {
+        wchar_t msg[512];
+        _snwprintf_s(msg, 512, _TRUNCATE,
+            L"This document is larger than %d MB, so JSON formatting is skipped "
+            L"to keep Notepad++ responsive.\n\nYou can raise JsonMaxFormatMB in\n"
+            L"%%APPDATA%%\\Notepad++\\plugins\\config\\NppPersianKit.ini",
+            g_jsonMaxMB);
+        MessageBoxW(NULL, msg, PLUGIN_NAME L" - Format JSON", MB_ICONINFORMATION | MB_OK);
+        return;
+    }
 
     std::string src((size_t)len + 1, '\0');
     Sci(sci, SCI_GETTEXT, (WPARAM)(len + 1), (LPARAM)&src[0]);
@@ -622,7 +684,7 @@ static void CmdAutoMd()
 static void CmdAbout()
 {
     MessageBoxW(NULL,
-        L"PersianKit 1.2.0\n"
+        L"PersianKit 1.3.0\n"
         L"RTL (right-to-left) editing, Vazirmatn font, and small JSON helpers.\n\n"
         L"Commands (also in Settings > Shortcut Mapper > Plugin commands):\n"
         L"  - Persian mode (RTL + Vazirmatn)\n"
@@ -631,6 +693,8 @@ static void CmdAbout()
         L"  - Auto Persian for .md/.txt\n"
         L"  - JSON: format                (JSON or JSONL, undoable)\n"
         L"  - JSON: fold all\n\n"
+        L"Large files (>JsonlMaxSizeMB, default 16 MB) keep the plain-text\n"
+        L"             lexer and lose word wrap so they stay responsive.\n"
         L"JSONL: .jsonl/.ndjson buffers are switched to the JSON lexer\n"
         L"             (SetJsonlLanguage=0 in the ini disables it).\n"
         L"JSON indent: one TAB per level when the document uses tabs,\n"
@@ -699,11 +763,11 @@ extern "C" __declspec(dllexport) void beNotified(SCNotificationMin* notify)
             CurrentExtension(ext, 32);
             if (IsPersianDocExtension(ext)) PersianMode();
         }
-        EnsureJsonLinesLanguage();
+        OnBufferJsonHandling();
         break;
 
     case NPPN_BUFFERACTIVATED:
-        EnsureJsonLinesLanguage();
+        OnBufferJsonHandling();
         if (g_autoMd)
         {
             wchar_t ext[32] = L"";
