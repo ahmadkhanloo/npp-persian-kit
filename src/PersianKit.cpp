@@ -42,6 +42,7 @@ static ShortcutKey g_skRtl = { false, true, true, true, 0x52 };   /* R */   /* A
 static bool  g_autoMd      = true;    /* auto-apply for .md/.markdown/.txt */
 static bool  g_rtlOnApply  = true;    /* Persian mode turns RTL on         */
 static int   g_fontSize    = 12;
+static int   g_jsonIndent  = 2;    /* spaces per level when the document does not use tabs */
 static char  g_fontFace[64] = "Vazirmatn";
 static wchar_t g_iniPath[MAX_PATH] = L"";
 static bool  g_dwWarned    = false;
@@ -106,6 +107,7 @@ static void BuildIniPath()
         WritePrivateProfileStringW(L"PersianKit", L"TurnRtlOn", L"1", g_iniPath);
         WritePrivateProfileStringW(L"PersianKit", L"FontFace", L"Vazirmatn", g_iniPath);
         WritePrivateProfileStringW(L"PersianKit", L"FontSize", L"12", g_iniPath);
+        WritePrivateProfileStringW(L"PersianKit", L"JsonIndentWidth", L"2", g_iniPath);
     }
 }
 
@@ -117,6 +119,7 @@ static void LoadSettings()
     g_autoMd     = GetPrivateProfileIntW(L"PersianKit", L"AutoPersianForMarkdown", 1, g_iniPath) != 0;
     g_rtlOnApply = GetPrivateProfileIntW(L"PersianKit", L"TurnRtlOn", 1, g_iniPath) != 0;
     g_fontSize   = GetPrivateProfileIntW(L"PersianKit", L"FontSize", 12, g_iniPath);
+    g_jsonIndent = GetPrivateProfileIntW(L"PersianKit", L"JsonIndentWidth", 2, g_iniPath);
 
     wchar_t face[64] = L"";
     GetPrivateProfileStringW(L"PersianKit", L"FontFace", L"Vazirmatn", face, 64, g_iniPath);
@@ -134,6 +137,8 @@ static void SaveSettings()
     wchar_t sz[16];
     swprintf_s(sz, 16, L"%d", g_fontSize);
     WritePrivateProfileStringW(L"PersianKit", L"FontSize", sz, g_iniPath);
+    swprintf_s(sz, 16, L"%d", g_jsonIndent);
+    WritePrivateProfileStringW(L"PersianKit", L"JsonIndentWidth", sz, g_iniPath);
 }
 
 /* ------------------------------------------------------- DirectWrite guard
@@ -239,11 +244,10 @@ static void PersianMode()
  * A tiny, encoding-agnostic beautifier: it only inserts/removes whitespace
  * outside string literals, so UTF-8 (Persian) content is copied byte for byte.
  * Returns false when the text is not a single well-formed JSON value.        */
-static bool FormatJsonText(const std::string& in, std::string& out, int indentWidth)
+static bool FormatJsonText(const std::string& in, std::string& out, const std::string& unit)
 {
     out.clear();
     out.reserve(in.size() + in.size() / 4);
-    const std::string unit((size_t)indentWidth, ' ');
 
     int  depth = 0;
     bool inString = false, escaped = false, anyToken = false;
@@ -328,6 +332,19 @@ static bool FormatJsonText(const std::string& in, std::string& out, int indentWi
     return anyToken && depth == 0 && !inString;
 }
 
+/* One indentation step for the current document:
+ *   - documents that use real tabs  -> a TAB per level
+ *   - everything else              -> JsonIndentWidth spaces per level (default 2) */
+static std::string IndentUnitForDocument(HWND sci)
+{
+    if (Sci(sci, SCI_GETUSETABS) != 0)
+        return std::string("\t");
+
+    int width = g_jsonIndent;
+    if (width < 1 || width > 16) width = 2;
+    return std::string((size_t)width, ' ');
+}
+
 static void CmdJsonFormat()
 {
     HWND sci = CurrentSci();
@@ -341,7 +358,7 @@ static void CmdJsonFormat()
     src.resize((size_t)len);
 
     std::string pretty;
-    if (!FormatJsonText(src, pretty, 2))
+    if (!FormatJsonText(src, pretty, IndentUnitForDocument(sci)))
     {
         MessageBoxW(NULL,
             L"This document does not look like valid JSON, so it was left untouched.",
@@ -387,7 +404,7 @@ static void CmdAutoMd()
 static void CmdAbout()
 {
     MessageBoxW(NULL,
-        L"PersianKit 1.1\n"
+        L"PersianKit 1.1.1\n"
         L"RTL (right-to-left) editing, Vazirmatn font, and small JSON helpers.\n\n"
         L"Commands (also in Settings > Shortcut Mapper > Plugin commands):\n"
         L"  - Persian mode (RTL + Vazirmatn)\n"
@@ -396,6 +413,8 @@ static void CmdAbout()
         L"  - Auto Persian for .md/.txt\n"
         L"  - JSON: format (2 spaces)     (whole document, undoable)\n"
         L"  - JSON: fold all\n\n"
+        L"JSON indent: one TAB per level when the document uses tabs,\n"
+        L"             otherwise JsonIndentWidth spaces (default 2).\n\n"
         L"Settings: %APPDATA%\\Notepad++\\plugins\\config\\NppPersianKit.ini\n"
         L"RTL requires: DirectWrite off + UTF-8 document.\n\n"
         L"Font \"Vazirmatn\" by Saber Rastikerdar (OFL 1.1).\n"

@@ -32,6 +32,7 @@
 
 **برگشت به قبل:** فایل `stylers.xml.bak-<تاریخ>` را روی `stylers.xml` کپی کن.
 **تغییر رنگ دلخواه:** `Settings ▸ Style Configurator ▸ Language: json`.
+**تودرتوی JSON:** هر لایه یک پله جلو می‌رود؛ اگر فایل روی «Tab» باشد هر لایه یک TAB، وگرنه `JsonIndentWidth` فاصله (پیش‌فرض ۲) — از `plugins\config\NppPersianKit.ini` قابل تغییر است.
 **نمای درختی JSON؟** پلاگین رسمی **JSON Tools** را از `Plugins ▸ Plugins Admin` نصب کن.
 
 ## پیش‌نیازها

@@ -4,10 +4,10 @@
 #include <string>
 #include "../../src/PersianKit.cpp"
 
-static void Show(const char* label, const std::string& text)
+static void Show(const char* label, const std::string& text, const char* unit = "  ")
 {
     std::string out;
-    const bool ok = FormatJsonText(text, out, 2);
+    const bool ok = FormatJsonText(text, out, std::string(unit));
     printf("=== %s : %s\n", label, ok ? "valid" : "INVALID");
     if (ok) printf("%s\n", out.c_str());
     printf("\n");
@@ -23,6 +23,7 @@ int main(int argc, char** argv)
     Show("scalar", "  42  ");
     Show("deep", "{\"nested\":{\"deep\":{\"deeper\":[1,[2,[3]]]}}}");
     Show("array root", "[1,{\"a\":[]},[]]");
+    Show("tabs", "{\"a\":{\"b\":[1,2]}}", "\t");
 
     if (argc > 1)
     {

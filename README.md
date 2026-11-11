@@ -86,6 +86,7 @@ AutoPersianForMarkdown=1   ; apply automatically for md/txt
 TurnRtlOn=1                ; Persian mode also turns RTL on
 FontFace=Vazirmatn
 FontSize=12
+JsonIndentWidth=2          ; spaces per JSON level (ignored when the doc uses tabs)
 ```
 
 ## Markdown reading — plugin or kit?
@@ -147,9 +148,12 @@ or change the colours interactively: `Settings ▸ Style Configurator ▸ Langua
 
 **Formatting without extra plugins:** PersianKit ships two small JSON commands of its own —
 
-* `Plugins ▸ PersianKit ▸ JSON: format (2 spaces)` — pretty-prints the whole document (2-space indent, UTF-8 safe,
-  works on Persian string values, undoable with a single `Ctrl+Z`). If the text is not a single valid JSON value the
-  document is left untouched and you get a warning instead of a mangled buffer.
+* `Plugins ▸ PersianKit ▸ JSON: format (2 spaces)` — pretty-prints the whole document: **every nesting level shifts one
+  step deeper**. UTF-8 safe (Persian string values are preserved), a single undo step, and if the text is not one valid
+  JSON value the document is left untouched with a warning instead of a mangled buffer.
+  * **Indentation step:** if the document is set to use tabs (`Settings ▸ Preferences ▸ Language ▸ Tab Settings`, or
+    `View ▸ Show Symbol ▸ Show White Space` to verify) each level gets **one TAB**; otherwise it gets
+    `JsonIndentWidth` spaces (default **2**, editable in `NppPersianKit.ini`).
 * `Plugins ▸ PersianKit ▸ JSON: fold all` — collapses every foldable block (`SCI_FOLDALL`).
 
 The beautifier is covered by an offline test: `build\test\run-test.bat` (see [Build](#build)).

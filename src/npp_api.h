@@ -42,6 +42,8 @@
 
 /* text / undo / folding */
 #define SCI_GETLENGTH                2006
+#define SCI_GETTABWIDTH              2121
+#define SCI_GETUSETABS               2125
 #define SCI_BEGINUNDOACTION          2078
 #define SCI_ENDUNDOACTION            2079
 #define SCI_SETSEL                   2160
