@@ -72,7 +72,7 @@ The kit installs it; for the plugin alone install it manually or run `kit\instal
 | Toggle RTL / LTR | `Alt+Shift+R` |
 | Apply Vazirmatn font | – |
 | Auto Persian for `.md`/`.txt` (checkable) | – |
-| JSON: format (2 spaces) | – |
+| JSON: format (JSON / JSONL) | – |
 | JSON: fold all | – |
 | About | – |
 
@@ -157,6 +157,31 @@ or change the colours interactively: `Settings ▸ Style Configurator ▸ Langua
 * `Plugins ▸ PersianKit ▸ JSON: fold all` — collapses every foldable block (`SCI_FOLDALL`).
 
 The beautifier is covered by an offline test: `build\test\run-test.bat` (see [Build](#build)).
+
+### JSONL / NDJSON
+
+A `.jsonl` file holds **one JSON record per line**. PersianKit treats it like a normal JSON file:
+
+| Feature | Behaviour |
+|---|---|
+| **Language** | opening `.jsonl`, `.ndjson`, `.jsonlines` or `.jl` switches the buffer to Notepad++’s **JSON lexer** → same colours, same fold margin, status bar says `JSON file`. Disable with `SetJsonlLanguage=0` in the ini. |
+| **Format** | `JSON: format` first tries the whole document as one value; if that fails it formats **every record independently** (blank lines are kept). If any single line is invalid JSON, nothing is changed. |
+| **Indent** | same rule as JSON: the document’s tab setting (one TAB per level) or `JsonIndentWidth` spaces. |
+
+```text
+before                              after "JSON: format"
+{"id":1,"tags":["a","b"]}           {
+{"id":2,"tags":[]}                    "id": 1,
+                                      "tags": [
+                                        "a",
+                                        "b"
+                                      ]
+                                    }
+                                    {
+                                      "id": 2,
+                                      "tags": []
+                                    }
+```
 
 ## Build
 

@@ -13,8 +13,23 @@ static void Show(const char* label, const std::string& text, const char* unit = 
     printf("\n");
 }
 
+static void ShowLines(const char* label, const std::string& text, const char* unit = "  ")
+{
+    std::string out;
+    const bool ok = FormatJsonLinesText(text, out, std::string(unit));
+    printf("=== %s : %s\n", label, ok ? "JSONL ok" : "INVALID");
+    if (ok) printf("%s\n", out.c_str());
+    printf("\n");
+}
+
 int main(int argc, char** argv)
 {
+    /* JSONL (one record per line) */
+    ShowLines("jsonl compact", "{\"id\":1,\"tags\":[\"a\",\"b\"]}\n{\"id\":2,\"tags\":[]}\n");
+    ShowLines("jsonl blank line", "{\"a\":1}\n\n{\"b\":2}\n");
+    ShowLines("jsonl broken", "{\"a\":1}\n{oops}\n");
+    ShowLines("jsonl tabs", "{\"a\":{\"b\":1}}\n{\"c\":[1,2]}\n", "\t");
+
     Show("compact",
          "{\"app\":\"x\",\"features\":{\"a\":true,\"b\":false},"
          "\"providers\":[{\"name\":\"Zharfa\",\"timeout\":120},{\"name\":\"Local\",\"timeout\":30}],"

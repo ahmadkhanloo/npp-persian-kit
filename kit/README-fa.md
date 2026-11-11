@@ -35,6 +35,18 @@
 **تودرتوی JSON:** هر لایه یک پله جلو می‌رود؛ اگر فایل روی «Tab» باشد هر لایه یک TAB، وگرنه `JsonIndentWidth` فاصله (پیش‌فرض ۲) — از `plugins\config\NppPersianKit.ini` قابل تغییر است.
 **نمای درختی JSON؟** پلاگین رسمی **JSON Tools** را از `Plugins ▸ Plugins Admin` نصب کن.
 
+## JSONL / NDJSON
+
+فایل `.jsonl` هر خط یک رکورد JSON دارد. با پلاگین، مثل `.json` رفتار می‌کند:
+
+* **زبان:** باز کردن `.jsonl` / `.ndjson` / `.jsonlines` / `.jl` بافر را خودکار روی زبان **JSON** می‌گذارد
+  (همان رنگ‌بندی و ستون فولد؛ نوار وضعیت `JSON file`). خاموش‌کردن: `SetJsonlLanguage=0` در `plugins\config\NppPersianKit.ini`
+* **فرمت:** `JSON: format` اول کل سند را یک‌جا امتحان می‌کند؛ اگر نشد، **هر خط را جدا** زیبا می‌کند (خط‌های خالی حفظ می‌شوند).
+  اگر حتی یک خط JSON معتبر نباشد، هیچ تغییری اعمال نمی‌شود.
+* **تودرتو:** همان قاعدهٔ JSON — اگر سند Tab باشد یک TAB، وگرنه `JsonIndentWidth` فاصله (پیش‌فرض ۲).
+
+بدون پلاگین هم می‌توانی پسوند را به زبان JSON وصل کنی: در `%APPDATA%\Notepad++\langs.xml` خط
+`<Language name="json" ext="json">` را به `ext="json jsonl ndjson jsonlines jl"` تغییر بده و Notepad++ را ری‌استارت کن.
 ## پیش‌نیازها
 
 1. **Notepad++ 8.9+**

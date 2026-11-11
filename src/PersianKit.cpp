@@ -43,6 +43,8 @@ static bool  g_autoMd      = true;    /* auto-apply for .md/.markdown/.txt */
 static bool  g_rtlOnApply  = true;    /* Persian mode turns RTL on         */
 static int   g_fontSize    = 12;
 static int   g_jsonIndent  = 2;    /* spaces per level when the document does not use tabs */
+static bool  g_jsonlLang   = true; /* switch .jsonl buffers to the JSON lexer automatically       */
+static int   g_jsonLangType = -1;  /* discovered at runtime via NPPM_GETLANGUAGENAME               */
 static char  g_fontFace[64] = "Vazirmatn";
 static wchar_t g_iniPath[MAX_PATH] = L"";
 static bool  g_dwWarned    = false;
@@ -68,6 +70,10 @@ static void CurrentExtension(wchar_t* out, int cch)
     if (!g_npp._nppHandle) return;
     SendMessage((HWND)g_npp._nppHandle, NPPM_GETEXTPART, (WPARAM)cch, (LPARAM)out);
     CharLowerBuffW(out, (DWORD)wcslen(out));
+
+    /* Notepad++ returns the extension including the leading dot on newer builds */
+    if (out[0] == L'.')
+        memmove(out, out + 1, wcslen(out) * sizeof(wchar_t));
 }
 
 static bool IsPersianDocExtension(const wchar_t* ext)
@@ -108,6 +114,7 @@ static void BuildIniPath()
         WritePrivateProfileStringW(L"PersianKit", L"FontFace", L"Vazirmatn", g_iniPath);
         WritePrivateProfileStringW(L"PersianKit", L"FontSize", L"12", g_iniPath);
         WritePrivateProfileStringW(L"PersianKit", L"JsonIndentWidth", L"2", g_iniPath);
+        WritePrivateProfileStringW(L"PersianKit", L"SetJsonlLanguage", L"1", g_iniPath);
     }
 }
 
@@ -120,6 +127,7 @@ static void LoadSettings()
     g_rtlOnApply = GetPrivateProfileIntW(L"PersianKit", L"TurnRtlOn", 1, g_iniPath) != 0;
     g_fontSize   = GetPrivateProfileIntW(L"PersianKit", L"FontSize", 12, g_iniPath);
     g_jsonIndent = GetPrivateProfileIntW(L"PersianKit", L"JsonIndentWidth", 2, g_iniPath);
+    g_jsonlLang  = GetPrivateProfileIntW(L"PersianKit", L"SetJsonlLanguage", 1, g_iniPath) != 0;
 
     wchar_t face[64] = L"";
     GetPrivateProfileStringW(L"PersianKit", L"FontFace", L"Vazirmatn", face, 64, g_iniPath);
@@ -139,6 +147,7 @@ static void SaveSettings()
     WritePrivateProfileStringW(L"PersianKit", L"FontSize", sz, g_iniPath);
     swprintf_s(sz, 16, L"%d", g_jsonIndent);
     WritePrivateProfileStringW(L"PersianKit", L"JsonIndentWidth", sz, g_iniPath);
+    WritePrivateProfileStringW(L"PersianKit", L"SetJsonlLanguage", g_jsonlLang ? L"1" : L"0", g_iniPath);
 }
 
 /* ------------------------------------------------------- DirectWrite guard
@@ -240,6 +249,130 @@ static void PersianMode()
     WarnAboutDirectWriteOnce();
 }
 
+/* ------------------------------------------------------- JSON validation ---
+ * A small recursive-descent validator, so "format" can refuse real syntax
+ * errors (e.g. {oops}) instead of only checking brace balance.             */
+static void SkipJsonWs(const std::string& s, size_t& i)
+{
+    while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n')) ++i;
+}
+
+static bool ParseJsonString(const std::string& s, size_t& i)
+{
+    if (i >= s.size() || s[i] != '"') return false;
+    ++i;
+    while (i < s.size())
+    {
+        const char c = s[i];
+        if (c == '\\')                            { i += 2; continue; }
+        if (c == '"')                             { ++i; return true; }
+        if ((unsigned char)c < 0x20)              return false;
+        ++i;
+    }
+    return false;
+}
+
+static bool ParseJsonNumber(const std::string& s, size_t& i)
+{
+    const size_t start = i;
+    if (i < s.size() && s[i] == '-') ++i;
+    if (i >= s.size()) return false;
+
+    if (s[i] == '0') { ++i; }
+    else if (s[i] >= '1' && s[i] <= '9')
+    {
+        while (i < s.size() && isdigit((unsigned char)s[i])) ++i;
+    }
+    else return false;
+
+    if (i < s.size() && s[i] == '.')
+    {
+        ++i;
+        if (i >= s.size() || !isdigit((unsigned char)s[i])) return false;
+        while (i < s.size() && isdigit((unsigned char)s[i])) ++i;
+    }
+    if (i < s.size() && (s[i] == 'e' || s[i] == 'E'))
+    {
+        ++i;
+        if (i < s.size() && (s[i] == '+' || s[i] == '-')) ++i;
+        if (i >= s.size() || !isdigit((unsigned char)s[i])) return false;
+        while (i < s.size() && isdigit((unsigned char)s[i])) ++i;
+    }
+    return i > start;
+}
+
+static bool ParseJsonLiteral(const std::string& s, size_t& i, const char* lit)
+{
+    const size_t n = strlen(lit);
+    if (s.compare(i, n, lit) == 0) { i += n; return true; }
+    return false;
+}
+
+static bool ParseJsonValue(const std::string& s, size_t& i, int depth)
+{
+    if (depth > 64) return false;
+    SkipJsonWs(s, i);
+    if (i >= s.size()) return false;
+
+    const char c = s[i];
+
+    if (c == '{')
+    {
+        ++i;
+        SkipJsonWs(s, i);
+        if (i < s.size() && s[i] == '}') { ++i; return true; }
+        for (;;)
+        {
+            SkipJsonWs(s, i);
+            if (!ParseJsonString(s, i)) return false;
+            SkipJsonWs(s, i);
+            if (i >= s.size() || s[i] != ':') return false;
+            ++i;
+            if (!ParseJsonValue(s, i, depth + 1)) return false;
+            SkipJsonWs(s, i);
+            if (i < s.size() && s[i] == ',') { ++i; continue; }
+            if (i < s.size() && s[i] == '}') { ++i; return true; }
+            return false;
+        }
+    }
+
+    if (c == '[')
+    {
+        ++i;
+        SkipJsonWs(s, i);
+        if (i < s.size() && s[i] == ']') { ++i; return true; }
+        for (;;)
+        {
+            if (!ParseJsonValue(s, i, depth + 1)) return false;
+            SkipJsonWs(s, i);
+            if (i < s.size() && s[i] == ',') { ++i; continue; }
+            if (i < s.size() && s[i] == ']') { ++i; return true; }
+            return false;
+        }
+    }
+
+    if (c == '"') return ParseJsonString(s, i);
+    if (c == '-' || isdigit((unsigned char)c)) return ParseJsonNumber(s, i);
+    if (ParseJsonLiteral(s, i, "true"))  return true;
+    if (ParseJsonLiteral(s, i, "false")) return true;
+    if (ParseJsonLiteral(s, i, "null"))  return true;
+
+    return false;
+}
+
+static bool IsValidJson(const std::string& s)
+{
+    size_t i = 0;
+    if (s.size() >= 3 && (unsigned char)s[0] == 0xEF &&
+        (unsigned char)s[1] == 0xBB && (unsigned char)s[2] == 0xBF)
+    {
+        i = 3;                                    /* skip a UTF-8 BOM */
+    }
+    if (!ParseJsonValue(s, i, 0)) return false;
+    SkipJsonWs(s, i);
+    return i == s.size();
+}
+
 /* ------------------------------------------------------------ JSON helpers
  * A tiny, encoding-agnostic beautifier: it only inserts/removes whitespace
  * outside string literals, so UTF-8 (Persian) content is copied byte for byte.
@@ -329,7 +462,7 @@ static bool FormatJsonText(const std::string& in, std::string& out, const std::s
         }
     }
 
-    return anyToken && depth == 0 && !inString;
+    return anyToken && depth == 0 && !inString && IsValidJson(in);
 }
 
 /* One indentation step for the current document:
@@ -345,6 +478,89 @@ static std::string IndentUnitForDocument(HWND sci)
     return std::string((size_t)width, ' ');
 }
 
+/* ---------------------------------------------------------------- JSONL ---
+ * A .jsonl (JSON Lines / NDJSON) file holds one JSON value per line, so it is
+ * formatted line by line, and the buffer is switched to the JSON lexer so the
+ * colouring and the fold margin behave like in a normal .json file.        */
+static int JsonLangType()
+{
+    if (g_jsonLangType >= 0) return g_jsonLangType;
+    if (!g_npp._nppHandle) return -1;
+
+    wchar_t name[128] = L"";
+    for (int t = 0; t < 256; ++t)
+    {
+        name[0] = L'\0';
+        SendMessage((HWND)g_npp._nppHandle, NPPM_GETLANGUAGENAME, (WPARAM)t, (LPARAM)name);
+        if (name[0] && _wcsicmp(name, L"json") == 0)
+        {
+            g_jsonLangType = t;
+            break;
+        }
+    }
+    return g_jsonLangType;
+}
+
+static bool IsJsonLinesExtension(const wchar_t* ext)
+{
+    return wcscmp(ext, L"jsonl") == 0 || wcscmp(ext, L"ndjson") == 0 ||
+           wcscmp(ext, L"jsonlines") == 0 || wcscmp(ext, L"jl") == 0;
+}
+
+static void EnsureJsonLinesLanguage()
+{
+    if (!g_jsonlLang || !g_npp._nppHandle) return;
+
+    wchar_t ext[32] = L"";
+    CurrentExtension(ext, 32);
+    if (!IsJsonLinesExtension(ext)) return;
+
+    const int langType = JsonLangType();
+    const UINT_PTR bufferId =
+        (UINT_PTR)SendMessage((HWND)g_npp._nppHandle, NPPM_GETCURRENTBUFFERID, 0, 0);
+    LRESULT res = 0;
+    if (langType >= 0 && bufferId)
+        res = SendMessage((HWND)g_npp._nppHandle, NPPM_SETBUFFERLANGTYPE, (WPARAM)bufferId, (LPARAM)langType);
+}
+
+/* Formats every non-empty line on its own.  Returns false if any line is not
+ * a complete JSON value (so the caller can fall back to a warning).         */
+static bool FormatJsonLinesText(const std::string& in, std::string& out, const std::string& unit)
+{
+    out.clear();
+    out.reserve(in.size() + in.size() / 4);
+
+    size_t pos = 0;
+    int records = 0;
+    while (pos <= in.size())
+    {
+        const size_t nl = in.find('\n', pos);
+        std::string line = (nl == std::string::npos) ? in.substr(pos) : in.substr(pos, nl - pos);
+        pos = (nl == std::string::npos) ? in.size() + 1 : nl + 1;
+
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+
+        const size_t b = line.find_first_not_of(" \t");
+        const size_t e = line.find_last_not_of(" \t");
+        if (b == std::string::npos)          /* keep blank lines as separators */
+        {
+            out.push_back('\n');
+            continue;
+        }
+
+        const std::string trimmed = line.substr(b, e - b + 1);
+        std::string pretty;
+        if (!FormatJsonText(trimmed, pretty, unit))
+            return false;
+
+        out += pretty;
+        out.push_back('\n');
+        ++records;
+    }
+
+    return records > 0;
+}
+
 static void CmdJsonFormat()
 {
     HWND sci = CurrentSci();
@@ -357,11 +573,13 @@ static void CmdJsonFormat()
     Sci(sci, SCI_GETTEXT, (WPARAM)(len + 1), (LPARAM)&src[0]);
     src.resize((size_t)len);
 
+    const std::string unit = IndentUnitForDocument(sci);
     std::string pretty;
-    if (!FormatJsonText(src, pretty, IndentUnitForDocument(sci)))
+
+    if (!FormatJsonText(src, pretty, unit) && !FormatJsonLinesText(src, pretty, unit))
     {
         MessageBoxW(NULL,
-            L"This document does not look like valid JSON, so it was left untouched.",
+            L"This document is neither valid JSON nor valid JSONL, so it was left untouched.",
             PLUGIN_NAME L" - Format JSON", MB_ICONWARNING | MB_OK);
         return;
     }
@@ -404,15 +622,17 @@ static void CmdAutoMd()
 static void CmdAbout()
 {
     MessageBoxW(NULL,
-        L"PersianKit 1.1.1\n"
+        L"PersianKit 1.2.0\n"
         L"RTL (right-to-left) editing, Vazirmatn font, and small JSON helpers.\n\n"
         L"Commands (also in Settings > Shortcut Mapper > Plugin commands):\n"
         L"  - Persian mode (RTL + Vazirmatn)\n"
         L"  - Toggle RTL / LTR            (default Alt+Shift+R)\n"
         L"  - Apply Vazirmatn font\n"
         L"  - Auto Persian for .md/.txt\n"
-        L"  - JSON: format (2 spaces)     (whole document, undoable)\n"
+        L"  - JSON: format                (JSON or JSONL, undoable)\n"
         L"  - JSON: fold all\n\n"
+        L"JSONL: .jsonl/.ndjson buffers are switched to the JSON lexer\n"
+        L"             (SetJsonlLanguage=0 in the ini disables it).\n"
         L"JSON indent: one TAB per level when the document uses tabs,\n"
         L"             otherwise JsonIndentWidth spaces (default 2).\n\n"
         L"Settings: %APPDATA%\\Notepad++\\plugins\\config\\NppPersianKit.ini\n"
@@ -479,9 +699,11 @@ extern "C" __declspec(dllexport) void beNotified(SCNotificationMin* notify)
             CurrentExtension(ext, 32);
             if (IsPersianDocExtension(ext)) PersianMode();
         }
+        EnsureJsonLinesLanguage();
         break;
 
     case NPPN_BUFFERACTIVATED:
+        EnsureJsonLinesLanguage();
         if (g_autoMd)
         {
             wchar_t ext[32] = L"";

@@ -23,6 +23,9 @@
 #define NPPM_GETCURRENTLANGTYPE      (NPPMSG + 5)   /* out: int* LangType                 */
 #define NPPM_SETMENUITEMCHECK        (NPPMSG + 40)  /* wParam: cmdID, lParam: 0/1         */
 #define NPPM_GETPLUGINSCONFIGDIR     (NPPMSG + 46)  /* out: wchar_t* buffer (MAX_PATH)    */
+#define NPPM_GETCURRENTBUFFERID      (NPPMSG + 60)  /* -> UINT_PTR buffer id              */
+#define NPPM_SETBUFFERLANGTYPE       (NPPMSG + 65)  /* wParam: bufferID, lParam: langType */
+#define NPPM_GETLANGUAGENAME         (NPPMSG + 83)  /* wParam: langType, lParam: wchar_t* */
 
 #define RUNCOMMAND_USER              (WM_USER + 3000)
 #define EXT_PART                     5
