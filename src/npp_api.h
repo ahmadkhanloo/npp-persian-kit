@@ -40,6 +40,16 @@
 #define SCI_GETBIDIRECTIONAL         2708
 #define SCI_SETBIDIRECTIONAL         2709
 
+/* text / undo / folding */
+#define SCI_GETLENGTH                2006
+#define SCI_BEGINUNDOACTION          2078
+#define SCI_ENDUNDOACTION            2079
+#define SCI_SETSEL                   2160
+#define SCI_REPLACESEL               2170
+#define SCI_GETTEXT                  2182
+#define SCI_FOLDALL                  2662
+#define SC_FOLDACTION_CONTRACT       0
+
 #define SC_BIDIRECTIONAL_DISABLED    0
 #define SC_BIDIRECTIONAL_R2L         2
 

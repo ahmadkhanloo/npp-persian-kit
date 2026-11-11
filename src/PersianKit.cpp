@@ -17,6 +17,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <wchar.h>
+#include <string>
 #include "npp_api.h"
 
 #define PLUGIN_NAME L"PersianKit"
@@ -27,6 +28,8 @@ enum CmdId
     CMD_TOGGLE_RTL,
     CMD_APPLY_FONT,
     CMD_AUTO_MD,
+    CMD_JSON_FORMAT,
+    CMD_JSON_FOLD,
     CMD_ABOUT,
     CMD_COUNT
 };
@@ -232,6 +235,134 @@ static void PersianMode()
     WarnAboutDirectWriteOnce();
 }
 
+/* ------------------------------------------------------------ JSON helpers
+ * A tiny, encoding-agnostic beautifier: it only inserts/removes whitespace
+ * outside string literals, so UTF-8 (Persian) content is copied byte for byte.
+ * Returns false when the text is not a single well-formed JSON value.        */
+static bool FormatJsonText(const std::string& in, std::string& out, int indentWidth)
+{
+    out.clear();
+    out.reserve(in.size() + in.size() / 4);
+    const std::string unit((size_t)indentWidth, ' ');
+
+    int  depth = 0;
+    bool inString = false, escaped = false, anyToken = false;
+    const size_t n = in.size();
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        const char c = in[i];
+
+        if (inString)
+        {
+            out.push_back(c);
+            if (escaped)          escaped = false;
+            else if (c == '\\')   escaped = true;
+            else if (c == '"')    inString = false;
+            continue;
+        }
+
+        switch (c)
+        {
+        case '"':
+            out.push_back(c);
+            inString = true;
+            anyToken = true;
+            break;
+
+        case '{':
+        case '[':
+        {
+            size_t j = i + 1;
+            while (j < n && (in[j] == ' ' || in[j] == '\t' || in[j] == '\r' || in[j] == '\n')) ++j;
+            const char close = (c == '{') ? '}' : ']';
+            if (j < n && in[j] == close)          /* empty object/array */
+            {
+                out.push_back(c);
+                out.push_back(close);
+                i = j;
+            }
+            else
+            {
+                out.push_back(c);
+                ++depth;
+                out.push_back('\n');
+                for (int d = 0; d < depth; ++d) out += unit;
+            }
+            anyToken = true;
+            break;
+        }
+
+        case '}':
+        case ']':
+            if (depth > 0) --depth;
+            out.push_back('\n');
+            for (int d = 0; d < depth; ++d) out += unit;
+            out.push_back(c);
+            anyToken = true;
+            break;
+
+        case ',':
+            out.push_back(',');
+            out.push_back('\n');
+            for (int d = 0; d < depth; ++d) out += unit;
+            anyToken = true;
+            break;
+
+        case ':':
+            out.push_back(':');
+            out.push_back(' ');
+            anyToken = true;
+            break;
+
+        case ' ': case '\t': case '\r': case '\n':
+            break;                                 /* collapse whitespace */
+
+        default:
+            out.push_back(c);
+            anyToken = true;
+            break;
+        }
+    }
+
+    return anyToken && depth == 0 && !inString;
+}
+
+static void CmdJsonFormat()
+{
+    HWND sci = CurrentSci();
+    if (!sci) return;
+
+    const long len = (long)Sci(sci, SCI_GETLENGTH);
+    if (len <= 0) return;
+
+    std::string src((size_t)len + 1, '\0');
+    Sci(sci, SCI_GETTEXT, (WPARAM)(len + 1), (LPARAM)&src[0]);
+    src.resize((size_t)len);
+
+    std::string pretty;
+    if (!FormatJsonText(src, pretty, 2))
+    {
+        MessageBoxW(NULL,
+            L"This document does not look like valid JSON, so it was left untouched.",
+            PLUGIN_NAME L" - Format JSON", MB_ICONWARNING | MB_OK);
+        return;
+    }
+    if (pretty == src) return;
+
+    Sci(sci, SCI_BEGINUNDOACTION);
+    Sci(sci, SCI_SETSEL, 0, (LPARAM)len);
+    Sci(sci, SCI_REPLACESEL, 0, (LPARAM)pretty.c_str());
+    Sci(sci, SCI_ENDUNDOACTION);
+}
+
+static void CmdJsonFoldAll()
+{
+    HWND sci = CurrentSci();
+    if (!sci) return;
+    Sci(sci, SCI_FOLDALL, SC_FOLDACTION_CONTRACT);
+}
+
 /* --------------------------------------------------------------- commands */
 static void CmdPersianMode() { PersianMode(); }
 
@@ -256,13 +387,15 @@ static void CmdAutoMd()
 static void CmdAbout()
 {
     MessageBoxW(NULL,
-        L"PersianKit 1.0\n"
-        L"RTL (right-to-left) editing and Vazirmatn font for Persian documents.\n\n"
+        L"PersianKit 1.1\n"
+        L"RTL (right-to-left) editing, Vazirmatn font, and small JSON helpers.\n\n"
         L"Commands (also in Settings > Shortcut Mapper > Plugin commands):\n"
         L"  - Persian mode (RTL + Vazirmatn)\n"
         L"  - Toggle RTL / LTR            (default Alt+Shift+R)\n"
         L"  - Apply Vazirmatn font\n"
-        L"  - Auto Persian for .md/.txt\n\n"
+        L"  - Auto Persian for .md/.txt\n"
+        L"  - JSON: format (2 spaces)     (whole document, undoable)\n"
+        L"  - JSON: fold all\n\n"
         L"Settings: %APPDATA%\\Notepad++\\plugins\\config\\NppPersianKit.ini\n"
         L"RTL requires: DirectWrite off + UTF-8 document.\n\n"
         L"Font \"Vazirmatn\" by Saber Rastikerdar (OFL 1.1).\n"
@@ -282,7 +415,9 @@ extern "C" __declspec(dllexport) void setInfo(NppData notepadPlusData)
         { L"Toggle RTL / LTR",               CmdToggleRtl,   1,        false, &g_skRtl },
         { L"Apply Vazirmatn font",           CmdApplyFont,   2,        false, NULL },
         { L"Auto Persian for .md/.txt",      CmdAutoMd,      3,        true,  NULL },
-        { L"About",                          CmdAbout,       4,        false, NULL },
+        { L"JSON: format (2 spaces)",        CmdJsonFormat,  4,        false, NULL },
+        { L"JSON: fold all",                 CmdJsonFoldAll, 5,        false, NULL },
+        { L"About",                          CmdAbout,       6,        false, NULL },
     };
 
     for (int i = 0; i < CMD_COUNT; ++i)

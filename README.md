@@ -72,6 +72,8 @@ The kit installs it; for the plugin alone install it manually or run `kit\instal
 | Toggle RTL / LTR | `Alt+Shift+R` |
 | Apply Vazirmatn font | – |
 | Auto Persian for `.md`/`.txt` (checkable) | – |
+| JSON: format (2 spaces) | – |
+| JSON: fold all | – |
 | About | – |
 
 All of them appear in `Settings ▸ Shortcut Mapper ▸ Plugin commands`, so you can bind your own keys.
@@ -142,6 +144,15 @@ or change the colours interactively: `Settings ▸ Style Configurator ▸ Langua
 
 **Need a tree view?** The plugin list has an official **JSON Tools** plugin
 (`Plugins ▸ Plugins Admin ▸ "JSON Tools"`) for a clickable tree, reformatting, minify and schema validation.
+
+**Formatting without extra plugins:** PersianKit ships two small JSON commands of its own —
+
+* `Plugins ▸ PersianKit ▸ JSON: format (2 spaces)` — pretty-prints the whole document (2-space indent, UTF-8 safe,
+  works on Persian string values, undoable with a single `Ctrl+Z`). If the text is not a single valid JSON value the
+  document is left untouched and you get a warning instead of a mangled buffer.
+* `Plugins ▸ PersianKit ▸ JSON: fold all` — collapses every foldable block (`SCI_FOLDALL`).
+
+The beautifier is covered by an offline test: `build\test\run-test.bat` (see [Build](#build)).
 
 ## Build
 
