@@ -124,5 +124,7 @@ jobs:
         with:
           name: PersianKit ${{ github.ref_name }}
           body_path: body.md
-          files: dist/release/PersianKit_*.zip
+          files: |
+            dist/release/PersianKit_*.zip
+            dist/release/NotepadPlusPlus-Persian-Kit.zip
           fail_on_unmatched_files: true
