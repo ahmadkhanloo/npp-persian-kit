@@ -19,6 +19,7 @@
 #include <wchar.h>
 #include <string>
 #include "npp_api.h"
+#include "version.h"
 
 #define PLUGIN_NAME L"PersianKit"
 
@@ -684,7 +685,7 @@ static void CmdAutoMd()
 static void CmdAbout()
 {
     MessageBoxW(NULL,
-        L"PersianKit 1.3.0\n"
+        L"PersianKit " PK_VERSION_WSTR L"\n"
         L"RTL (right-to-left) editing, Vazirmatn font, and small JSON helpers.\n\n"
         L"Commands (also in Settings > Shortcut Mapper > Plugin commands):\n"
         L"  - Persian mode (RTL + Vazirmatn)\n"

@@ -37,8 +37,14 @@ call "!VC_VARS!" >nul || exit /b 1
 
 if not exist dist\PersianKit mkdir dist\PersianKit
 
+rem Version resource (src/version.h). Plugins Admin refuses a plugin DLL that
+rem has no VERSIONINFO, so it is compiled and linked in for every build.
+rc /nologo /fo dist\PersianKit\PersianKit.res src\PersianKit.rc
+if errorlevel 1 exit /b 1
+
 cl /nologo /LD /O2 /EHsc /W3 /DUNICODE /D_UNICODE ^
    src\PersianKit.cpp ^
+   dist\PersianKit\PersianKit.res ^
    /Fo:dist\PersianKit\ ^
    /Fe:dist\PersianKit\PersianKit.dll ^
    user32.lib advapi32.lib

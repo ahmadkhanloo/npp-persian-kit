@@ -25,10 +25,13 @@ Plugins ▸ PersianKit ▸ Persian mode (RTL + Vazirmatn)      Alt+Shift+R  (tog
 
 1. Open the [latest release](https://github.com/ahmadkhanloo/npp-persian-kit/releases/latest).
 2. Download **`PersianKit_x64.zip`** (or `PersianKit_x86.zip` for 32-bit Notepad++).
-3. **Close Notepad++**, then copy the `PersianKit` folder into
-   `C:\Program Files\Notepad++\plugins\` (needs administrator – Explorer will ask).
-   Portable Notepad++? copy it into `<portable folder>\plugins\`.
+3. **Close Notepad++**, create `C:\Program Files\Notepad++\plugins\PersianKit\` and put the
+   `PersianKit.dll` from the zip in it (needs administrator – Explorer will ask).
+   Portable Notepad++? use `<portable folder>\plugins\PersianKit\`.
 4. Start Notepad++ → `Plugins ▸ PersianKit`.
+
+The zip keeps `PersianKit.dll` at its root on purpose: that is the layout the official plugin
+list requires, and the one Plugins Admin extracts into `plugins\PersianKit\` for you.
 
 ### B. Build and install from source
 
@@ -53,7 +56,7 @@ Requirements for RTL:
 2. **UTF-8 document** — `Encoding ▸ Convert to UTF-8` (the plugin warns, it does not convert silently).
 3. The **Vazirmatn** font installed (see below).
 
-### B. Kit (plugin + preview styling + font, no admin rights)
+### C. Kit (plugin + preview styling + font, no admin rights)
 
 `kit\install.cmd` — installs the font for the current user, patches `config.xml`/`stylers.xml`, sets the Markdown UDL font,
 and copies the RTL stylesheet for **Markdown Panel** into `plugins\config`. Every edited file is backed up as `*.bak-<date>`.
@@ -198,12 +201,23 @@ before                              after "JSON: format"
 ## Build
 
 ```bat
-build\build.bat
-:: -> dist\PersianKit\PersianKit.dll
+build\build.bat        :: x64 -> dist\PersianKit\PersianKit.dll
+build\build-x86.bat    :: x86 -> dist\PersianKit-x86\PersianKit.dll
+build\package.ps1      :: -> dist\release\PersianKit_x64.zip, PersianKit_x86.zip (+ the kit zip)
 ```
 
-* x64, MSVC 2019/2022/2026 Build Tools, no external dependencies (only `user32.lib`, `advapi32.lib`).
-* GitHub Actions: [`.github/workflows/build.yml`](.github/workflows/build.yml) builds every push; tagged builds (`v1.0.0`) also produce a release zip.
+* x64/x86, MSVC 2019/2022/2026 Build Tools, no external dependencies (only `user32.lib`, `advapi32.lib`).
+* The version has a single source of truth: [`src/version.h`](src/version.h). It feeds the DLL's VERSIONINFO
+  resource ([`src/PersianKit.rc`](src/PersianKit.rc)) and the About box. Bump it **before** tagging — Plugins
+  Admin compares that number with the version in the plugin list entry, and rejects a DLL that carries none
+  (`Does not contain any version information.`).
+* `build\package.ps1` builds the Plugin-List packages with `PersianKit.dll` at the **root** of the zip, which is
+  the layout `validator.py` (nppPluginList) and Plugins Admin require. `build\test\verify-package.ps1` re-checks
+  those same rules offline; with `-Json` it also validates a `pl.x64.json` / `pl.x86.json` entry (hash, version,
+  uniqueness).
+* GitHub Actions: [`.github/workflows/build.yml`](.github/workflows/build.yml) builds x64 + x86 on every push,
+  packages and verifies the zips, and on a `v*` tag (matching `src/version.h`) publishes a release with all three
+  assets and prints their SHA-256 in the job summary.
 
 ## How it works
 

@@ -25,10 +25,16 @@ if not defined VC_VARS (
 echo Using: !VC_VARS!
 call "!VC_VARS!" >nul || exit /b 1
 
-if not exist dist\PersianKit-x86 mkdir dist\PersianKit-x86 dist\PersianKit-x86
+if not exist dist\PersianKit-x86 mkdir dist\PersianKit-x86
+
+rem Version resource (src/version.h). Plugins Admin refuses a plugin DLL that
+rem has no VERSIONINFO, so it is compiled and linked in for every build.
+rc /nologo /fo dist\PersianKit-x86\PersianKit.res src\PersianKit.rc
+if errorlevel 1 exit /b 1
 
 cl /nologo /LD /O2 /EHsc /W3 /DUNICODE /D_UNICODE ^
    src\PersianKit.cpp ^
+   dist\PersianKit-x86\PersianKit.res ^
    /Fo:dist\PersianKit-x86\ ^
    /Fe:dist\PersianKit-x86\PersianKit.dll ^
    user32.lib advapi32.lib

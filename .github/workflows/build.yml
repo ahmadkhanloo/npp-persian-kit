@@ -7,50 +7,122 @@ on:
   pull_request:
   workflow_dispatch:
 
-jobs:
-  plugin:
-    name: Build PersianKit.dll (x64)
-    runs-on: windows-latest
+permissions:
+  contents: write        # the release job publishes the plugin packages
 
+jobs:
+  build:
+    name: Build PersianKit.dll (${{ matrix.arch }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            script: build\build.bat
+            outdir: dist/PersianKit
+          - arch: x86
+            script: build\build-x86.bat
+            outdir: dist/PersianKit-x86
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
+      # build.bat / build-x86.bat locate vcvars64/vcvars32 with vswhere, so the
+      # compiler always matches the matrix entry; no separate MSVC setup step.
       - name: Compile
         shell: cmd
-        run: build\build.bat
+        run: ${{ matrix.script }}
 
       - name: Show result
         shell: pwsh
-        run: Get-ChildItem dist\PersianKit | Format-Table Name, Length
+        run: |
+          $dll = Get-ChildItem '${{ matrix.outdir }}' -Filter PersianKit.dll
+          "built {0} ({1} B, FileVersion {2})" -f $dll.Name, $dll.Length, $dll.VersionInfo.FileVersion
 
       - name: Upload plugin
         uses: actions/upload-artifact@v4
         with:
-          name: PersianKit-x64
-          path: dist/PersianKit/PersianKit.dll
+          name: PersianKit-${{ matrix.arch }}
+          path: ${{ matrix.outdir }}/PersianKit.dll
           if-no-files-found: error
 
-      - name: Package (tag builds)
+  package:
+    name: Package for Plugins Admin
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: PersianKit-x64
+          path: dist/PersianKit
+      - uses: actions/download-artifact@v4
+        with:
+          name: PersianKit-x86
+          path: dist/PersianKit-x86
+
+      - name: Check the tag against src/version.h
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
-          $stage = "stage/PersianKit"
-          New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item dist/PersianKit/PersianKit.dll $stage
-          Copy-Item kit/fonts $stage -Recurse
-          Copy-Item kit/css   $stage -Recurse
-          Copy-Item build/install-plugin.ps1 $stage -ErrorAction SilentlyContinue
-          Compress-Archive -Path stage/PersianKit -DestinationPath PersianKit-${{ github.ref_name }}-x64.zip -Force
-          Get-ChildItem PersianKit-*.zip | Format-Table Name, Length
+          $expected = (Select-String -Path src\version.h -Pattern '#define PK_VERSION_STR\s+"([^"]+)"').Matches[0].Groups[1].Value
+          $tag = '${{ github.ref_name }}'.TrimStart('v')
+          if ($tag -ne $expected) { throw "tag '$tag' does not match src/version.h ('$expected') - bump version.h before tagging" }
 
-      - name: Upload release zip
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Package the zips
+        shell: pwsh
+        run: ./build/package.ps1
+
+      # Same rules as validator.py in notepad-plus-plus/nppPluginList: the DLL at
+      # the root of the zip, matching versions. A red step here saves a red PR.
+      - name: Verify against the Plugin List rules
+        shell: pwsh
+        run: ./build/test/verify-package.ps1 -Zip ./dist/release/PersianKit_x64.zip, ./dist/release/PersianKit_x86.zip
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $sums = Get-FileHash dist/release/PersianKit_*.zip -Algorithm SHA256 | ForEach-Object {
+            "{0}  {1}" -f $_.Hash.ToLower(), (Split-Path $_.Path -Leaf)
+          }
+          $sums
+          '### Plugin package SHA-256' | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          '```'                       | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          $sums                       | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          '```'                       | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: PersianKit-release-zip
-          path: PersianKit-*.zip
+          name: PersianKit-packages
+          path: dist/release/PersianKit_*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: PersianKit-packages
+          path: dist/release
+
+      - name: Release notes
+        shell: pwsh
+        run: |
+          $notes = "release-notes/${{ github.ref_name }}.md"
+          $body = if (Test-Path $notes) { Get-Content $notes -Raw } else { "PersianKit ${{ github.ref_name }}" }
+          Set-Content -Path body.md -Value $body -Encoding utf8
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PersianKit ${{ github.ref_name }}
+          body_path: body.md
+          files: dist/release/PersianKit_*.zip
+          fail_on_unmatched_files: true
