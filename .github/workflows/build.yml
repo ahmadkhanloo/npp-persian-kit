@@ -25,7 +25,7 @@ jobs:
             script: build\build-x86.bat
             outdir: dist/PersianKit-x86
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # build.bat / build-x86.bat locate vcvars64/vcvars32 with vswhere, so the
       # compiler always matches the matrix entry; no separate MSVC setup step.
@@ -51,7 +51,7 @@ jobs:
     needs: build
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v4
         with:
@@ -105,7 +105,7 @@ jobs:
     needs: package
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v4
         with:
